@@ -1,12 +1,11 @@
 from aws_cdk import (
-    # Duration,
     Stack,
-    # aws_sqs as sqs,
 )
 from constructs import Construct
 import aws_cdk as cdk
 import aws_cdk.aws_s3 as s3
 import aws_cdk.aws_dynamodb as dynamodb
+import aws_cdk.aws_lambda as lambda_
 
 
 class MycdkStack(Stack):
@@ -19,12 +18,17 @@ class MycdkStack(Stack):
         table = dynamodb.Table(self, "MyfirstTable", 
                                partition_key=dynamodb.Attribute(name="Filename", 
                                                                 type=dynamodb.AttributeType.STRING),
-                                table_name="nf-rekognition-table")
+                                table_name="nf-rekognition-table",
+                                removal_policy=cdk.RemovalPolicy.DESTROY)
+        function = lambda_.Function(self, "lambda-func", handler="lambda-func.lambda_handler",
+                                    runtime=lambda_.Runtime.PYTHON_3_11,
+                                    code=lambda_.Code.from_asset("./lambda"),
+                                    function_name="nf-rekognition-function",
+                                    retry_attempts=0)
 
-        # The code that defines your stack goes here
+        s3_event_source = cdk.aws_lambda_event_sources.S3EventSource(bucket, 
+                                                                     events=[s3.EventType.OBJECT_CREATED_PUT])
+        function.add_event_source(s3_event_source)
+        function.add_to_role_policy(cdk.aws_iam.PolicyStatement(actions=["rekognition:*", "dynamodb:*",  "s3:*",
+                "s3-object-lambda:*"], resources=["*"]))
 
-        # example resource
-        # queue = sqs.Queue(
-        #     self, "MycdkQueue",
-        #     visibility_timeout=Duration.seconds(300),
-        # )
