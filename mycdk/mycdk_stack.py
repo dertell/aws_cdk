@@ -24,7 +24,8 @@ class MycdkStack(Stack):
                                     runtime=lambda_.Runtime.PYTHON_3_11,
                                     code=lambda_.Code.from_asset("./lambda"),
                                     function_name="nf-rekognition-function",
-                                    retry_attempts=0)
+                                    retry_attempts=0,
+                                    environment={"tableName": table.table_name})
 
         s3_event_source = cdk.aws_lambda_event_sources.S3EventSource(bucket, 
                                                                      events=[s3.EventType.OBJECT_CREATED_PUT])

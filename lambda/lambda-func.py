@@ -1,19 +1,20 @@
 import boto3
 from botocore.exceptions import ClientError
 import logging
+import os
 
 def lambda_handler(event, context):
-    session = boto3.Session()
-    tableName = 'nf-rekognition-table'
 
+    tableName = os.environ.get("tableName")
     bucket = event['Records'][0]['s3']['bucket']['name']
     key = event['Records'][0]['s3']['object']['key']
-    labels = detect_labels(bucket, key, session)
-    save_labels(labels, key, session, tableName)
+
+    labels = detect_labels(bucket, key)
+    save_labels(labels, key, tableName)
 
 
-def detect_labels(bucket, key, session):
-    client = session.client('rekognition')
+def detect_labels(bucket, key):
+    client = boto3.client('rekognition')
     try:
         response = client.detect_labels(
             Image={
@@ -30,8 +31,8 @@ def detect_labels(bucket, key, session):
     labels = [label["Name"] for label in response["Labels"]]
     return labels
     
-def save_labels(labels, key, session, tableName):
-    client = session.client('dynamodb')
+def save_labels(labels, key, tableName):
+    client = boto3.client('dynamodb')
     try:
         response = client.put_item(
             TableName= tableName,
