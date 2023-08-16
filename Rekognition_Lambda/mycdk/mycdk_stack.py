@@ -15,11 +15,13 @@ class MycdkStack(Stack):
         bucket = s3.Bucket(self, "MyfirstBucket", removal_policy=cdk.RemovalPolicy.DESTROY,
                            auto_delete_objects=True,
                            bucket_name="nf-rekognition-bucket")
+        
         table = dynamodb.Table(self, "MyfirstTable", 
                                partition_key=dynamodb.Attribute(name="Filename", 
                                                                 type=dynamodb.AttributeType.STRING),
                                 table_name="nf-rekognition-table",
                                 removal_policy=cdk.RemovalPolicy.DESTROY)
+        
         function = lambda_.Function(self, "lambda-func", handler="lambda-func.lambda_handler",
                                     runtime=lambda_.Runtime.PYTHON_3_11,
                                     code=lambda_.Code.from_asset("./lambda"),
