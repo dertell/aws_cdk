@@ -7,6 +7,7 @@ from hello_cdk.hello_cdk_stack import HelloCdkStack, ByeCdkStack
 
 
 app = cdk.App()
+
 HelloCdkStack(app, "HelloCdkStack",)
 
 ByeCdkStack(app, "ByeCdkStack")

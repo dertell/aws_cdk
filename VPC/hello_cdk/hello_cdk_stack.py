@@ -19,11 +19,12 @@ class HelloCdkStack(Stack):
         bucket = s3.Bucket(self, "MyfirstBucket", removal_policy=cdk.RemovalPolicy.DESTROY,
                            auto_delete_objects=True,
                            bucket_name="nf-rekognition-bucket")
-        table = dynamodb.Table(self, "MyfirstTable", 
-                               partition_key=dynamodb.Attribute(name="Filename", 
-                                                                type=dynamodb.AttributeType.STRING),
-                                table_name="nf-rekognition-table",
-                                removal_policy=cdk.RemovalPolicy.DESTROY)
+        #table = dynamodb.Table(self, "MyfirstTable", 
+        #                       partition_key=dynamodb.Attribute(name="Filename", 
+        #                                                        type=dynamodb.AttributeType.STRING),
+        #                        table_name="nf-rekognition-table",
+        #                        removal_policy=cdk.RemovalPolicy.DESTROY)
+        
 
 class ByeCdkStack(Stack):
 
@@ -63,14 +64,14 @@ class ByeCdkStack(Stack):
 
         bastionHost = ec2.Instance(self, "BastionHost", vpc=vpc, 
                                    instance_type=ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE2, ec2.InstanceSize.MICRO),
-                                   machine_image=ec2.AmazonLinuxImage(generation=ec2.AmazonLinuxGeneration.AMAZON_LINUX_2023),
+                                   machine_image=ec2.MachineImage.latest_amazon_linux2023(),
                                    security_group=bastionSG, vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC))
         
 
         template = ec2.LaunchTemplate(self,"LaunchTemplate", machine_image=ec2.MachineImage.latest_amazon_linux2023(),
                                       security_group=autoscalingSG, instance_type=ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE2,
                                                                                                       ec2.InstanceSize.MICRO),
-                                      user_data=ec2.UserData.add_execute_file_command(self, file_path="./script/user-data.sh",
+                                      user_data=ec2.UserData.add_execute_file_command(self, file_path="./userData/user-data.sh",
                                                                                       arguments=endpoint))
         
 
@@ -80,7 +81,7 @@ class ByeCdkStack(Stack):
 
         autog = autoscaling.AutoScalingGroup(self, "ASG", vpc=vpc, launch_template=template, auto_scaling_group_name="MyASG",
                                              health_check=autoscaling.HealthCheck.elb(grace=cdk.Duration.minutes(5)),
-                                             max_capacity=4, min_capacity=1,
+                                             max_capacity=4, min_capacity=1, vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
                                              notifications=[autoscaling.NotificationConfiguration(topic=topic)])
         autog.scale_on_cpu_utilization("ASG", target_utilization_percent=75)
 
