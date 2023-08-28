@@ -30,7 +30,8 @@ def detect_labels(bucket, key):
     labels = {label["Name"]:{"N": str(round(label["Confidence"],2))} 
               for label in response["Labels"]}
     return labels
-    
+
+
 def save_labels(labels, key, tableName):
     client = boto3.client('dynamodb')
     try:
