@@ -27,16 +27,20 @@ def detect_labels(bucket, key):
     except ClientError as e:
         logging.error(e)
 
-    labels = {label["Name"]:{"N": str(round(label["Confidence"],2))} 
+    labels = {label["Name"]:{"S": str(round(label["Confidence"],2))+"%"} 
               for label in response["Labels"]}
     return labels
 
 
 def save_labels(labels, key, tableName):
     client = boto3.client('dynamodb')
+    sortkey = ""
+    for label in list(labels.keys()):
+        sortkey += label
     try:
         client.put_item(TableName= tableName,
                         Item={'Filename': {'S': key},
+                              'Sortkey': {'S': sortkey.lower()},
                               'Labels': {'M': labels}
                               })
     except ClientError as e:
