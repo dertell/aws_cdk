@@ -1,0 +1,38 @@
+version: '3'
+
+services:
+  traefik:
+    build:
+      context: ./traefik
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - "./traefik/traefik.toml:/etc/traefik/traefik.toml"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./traefik-public-certificates:/certificates"
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`dashboard.voelsch.xyz`)"
+      - "traefik.http.routers.dashboard.tls=true"
+      - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.middlewares=auth"
+      - "traefik.http.middlewares.auth.basicauth.users=${user}"
+
+  flask:
+    build:
+      context: ./app
+    environment:
+      - apiid=${apiid}
+      - usageplanid=${usageplanid}
+      - endpoint=${endpoint}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.flask.rule=Host(`api.voelsch.xyz`)"
+      - "traefik.http.routers.flask.tls=true"
+      - "traefik.http.routers.flask.tls.certresolver=letsencrypt"
+
+volumes:
+  traefik-public-certificates:

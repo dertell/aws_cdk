@@ -1,0 +1,12 @@
+<form id="keygen" method="post" hx-post="/keygen" hx-indicator="#spinner" hx-target="#keytarget">
+    <div class="row input-group-newsletter">
+        <div class="col">
+            <input class="form-control" id="keygen" type="text" name="keygen" placeholder="Name..."/></div>
+        <div class="col-auto">
+            <button class="btn btn-primary" id="submitButton" type="submit">Get Key!</button><br><br>
+            <div id="spinner" class="htmx-indicator spinner-border text-info" role="status">
+                <span class="sr-only">Loading...</span>
+              </div>
+</div>
+    </div>                
+</form>

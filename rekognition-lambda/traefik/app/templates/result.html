@@ -1,0 +1,16 @@
+<div class="col" id="searchtarget">
+    {% if results %}
+         <table class="table" id="search-results">
+            <tbody id="search-results">
+              {% if results == "Forbidden" %}
+              <tr><td>Forbidden</td></tr>
+                {% else %}
+                {% for result in results %}
+                <tr><td>{{ result.Key }}</td><td><a target="_blank" href="{{ result.Link }}">Link</a></td></tr>
+              {% endfor %}
+            </tbody>
+            <br>
+        </table>
+        {% endif %}
+        {% endif %}
+    </div>

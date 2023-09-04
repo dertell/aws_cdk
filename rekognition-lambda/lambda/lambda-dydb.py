@@ -31,7 +31,13 @@ def main(event, context):
         return {
             "statusCode": 400,
             "headers": {"Content-Type": "application/json"},
-            "body": json.dumps({"message": "could not find"}),
+            "body": json.dumps({"message": [{"Key": "Something went wrong"}]}),
+        }
+    if response["Count"] == 0:
+        return {
+            "statusCode": 400,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"message": [{"Key": "Sorry, I couldn't find that."}]}),
         }
 
     filenames = [r["Filename"]["S"] for r in response["Items"]]

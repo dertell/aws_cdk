@@ -1,0 +1,10 @@
+<form id="search" method="post" hx-post="/search" hx-target="#searchtarget">
+    <div class="row input-group-newsletter" id="keytarget">
+        <div class="col" >
+        <input class="form-control" id="search" type="text" name="search" placeholder="Search..."/><br>
+        <input class="form-control" id="value" type="text" name="apikey" placeholder="API Key..." value="{{ value }}"/></div>
+    <div class="col-auto">
+        <button class="btn btn-primary" id="submitButton" type="submit">Search!</button>
+</div>
+</div>                 
+</form>
