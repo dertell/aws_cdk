@@ -7,7 +7,8 @@ import aws_cdk.aws_s3 as s3
 import aws_cdk.aws_dynamodb as dynamodb
 import aws_cdk.aws_lambda as lambda_
 import aws_cdk.aws_apigateway as apigateway
-
+import aws_cdk.aws_ec2 as ec2
+import os
 
 class MycdkStack(Stack):
 
@@ -58,4 +59,32 @@ class MycdkStack(Stack):
         
         plan = apigateway.UsagePlan(self, "myplan", name="myplan")
         plan.add_api_stage(stage=api.deployment_stage)
+
+           
+        instance = ec2.Instance(self, "Webapp", vpc=ec2.Vpc.from_lookup(self, "myvpc", 
+                                                                        vpc_name="my-vpc"), 
+                                instance_type=ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE2, 
+                                                                  ec2.InstanceSize.MICRO),
+                                machine_image=ec2.MachineImage.lookup(name="traefik image", 
+                                                                      owners=[os.environ.get("account")]),
+                                vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
+                                security_group=ec2.SecurityGroup.from_lookup_by_id(self, "seq", 
+                                                                                   security_group_id="sg-0c043b656186408a9")
+                                )
+        instance.add_user_data(f'cd /home/ec2-user \n\
+sudo sed -i "s/dashboard.voelsch.xyz/traefik.voelsch.xyz/" compose.yaml \n\
+sudo sed -i "s/api.voelsch.xyz/flask.voelsch.xyz/" compose.yaml \n\
+sudo sed -i "s/gjauaijw1d/{api.rest_api_id}/" compose.yaml \n\
+sudo sed -i "s/ro99lo/{plan.usage_plan_id}/" compose.yaml \n\
+sudo sed -i "s/https://gjauaijw1d.execute-api.eu-central-1.amazonaws.com/neuefische//{api.url}/" compose.yaml \n\
+sudo systemctl start docker \n\
+sudo docker-compose up')
+        instance.add_to_role_policy(cdk.aws_iam.PolicyStatement(actions=["apigateway:*"], 
+                                                                resources=["*"]))
+        instance.node.add_dependency(api)
+        instance.node.add_dependency(plan)
+        cfneip = ec2.CfnEIPAssociation(self, "CfnEIP", allocation_id="eipalloc-0e8628d18580b5028",
+                                       instance_id=instance.instance_id)
+
+
 
