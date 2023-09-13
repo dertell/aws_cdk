@@ -3,6 +3,8 @@ from botocore.exceptions import ClientError
 import os
 import json
 
+dynamo = boto3.client("dynamodb")
+
 def main(event, context):
     try:
         search = event['queryStringParameters']['search']
@@ -18,9 +20,8 @@ def main(event, context):
             "headers": {"Content-Type": "application/json"},
             "body": json.dumps({"message": "invalid query string"}),
         }
-    client = boto3.client("dynamodb")
     try:
-        response = client.scan(
+        response = dynamo.scan(
             TableName = os.environ.get("tableName"),
             ExpressionAttributeValues = {":search": {"S": search}},
             ExpressionAttributeNames = {"#Sortkey": "Sortkey"},
@@ -41,20 +42,8 @@ def main(event, context):
         }
 
     filenames = [r["Filename"]["S"] for r in response["Items"]]
-
-    client = boto3.client("s3")
-    result = []
-    for file in filenames:
-        data = {}
-        try:
-            link = client.generate_presigned_url('get_object', 
-                                                 Params={'Bucket': os.environ.get('bucket'),
-                                                         'Key': file}, ExpiresIn = 300)
-            data["Key"] = file
-            data["Link"] = link
-            result.append(data)
-        except ClientError:
-            pass        
+    result = [{ "Key": file,"Link":f"https://{os.environ.get('bucket')}.s3.eu-central-1.amazonaws.com/{file}"} for file in filenames]
+    
     return {
             "statusCode": 200,
             "headers": {"Content-Type": "application/json"},

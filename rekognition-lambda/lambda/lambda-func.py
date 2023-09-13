@@ -4,6 +4,11 @@ import logging
 import os
 import urllib.parse
 
+
+rekognition = boto3.client('rekognition')
+dynamo = boto3.client('dynamodb')
+
+
 def lambda_handler(event, context):
 
     tableName = os.environ.get("tableName")
@@ -15,9 +20,8 @@ def lambda_handler(event, context):
 
 
 def detect_labels(bucket, key):
-    client = boto3.client('rekognition')
     try:
-        response = client.detect_labels(
+        response = rekognition.detect_labels(
             Image={
                 'S3Object': {'Bucket': bucket,
                              'Name': key,
@@ -33,12 +37,11 @@ def detect_labels(bucket, key):
 
 
 def save_labels(labels, key, tableName):
-    client = boto3.client('dynamodb')
     sortkey = ""
     for label in list(labels.keys()):
         sortkey += label
     try:
-        client.put_item(TableName= tableName,
+        dynamo.put_item(TableName= tableName,
                         Item={'Filename': {'S': key},
                               'Sortkey': {'S': sortkey.lower()},
                               'Labels': {'M': labels}

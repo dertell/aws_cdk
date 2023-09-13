@@ -8,22 +8,30 @@ import aws_cdk.aws_dynamodb as dynamodb
 import aws_cdk.aws_lambda as lambda_
 import aws_cdk.aws_apigateway as apigateway
 import aws_cdk.aws_ec2 as ec2
+import aws_cdk.aws_ecs as ecs
+import aws_cdk.aws_elasticloadbalancingv2 as lb
 import os
+
+
+bucketName = "new-nf-rekognition-bucket"
+tableName = "new-nf-rekognition-table"
 
 class MycdkStack(Stack):
 
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
+
+
         bucket = s3.Bucket(self, "MyfirstBucket", removal_policy=cdk.RemovalPolicy.DESTROY,
-                           auto_delete_objects=True,
-                           bucket_name="nf-rekognition-bucket")
+                           auto_delete_objects=True, block_public_access=s3.BlockPublicAccess(block_public_acls=False,block_public_policy=False,ignore_public_acls=False,restrict_public_buckets=False),
+                           bucket_name=bucketName, object_ownership= s3.ObjectOwnership.BUCKET_OWNER_PREFERRED,access_control=s3.BucketAccessControl.PUBLIC_READ)
         
 
         table = dynamodb.Table(self, "MyfirstTable", 
                                partition_key=dynamodb.Attribute(name="Filename", 
                                                                 type=dynamodb.AttributeType.STRING),
                                 sort_key=dynamodb.Attribute(name="Sortkey", type=dynamodb.AttributeType.STRING),
-                                table_name="nf-rekognition-table",
+                                table_name=tableName,
                                 removal_policy=cdk.RemovalPolicy.DESTROY)
         
 
@@ -60,31 +68,37 @@ class MycdkStack(Stack):
         plan = apigateway.UsagePlan(self, "myplan", name="myplan")
         plan.add_api_stage(stage=api.deployment_stage)
 
-           
-        instance = ec2.Instance(self, "Webapp", vpc=ec2.Vpc.from_lookup(self, "myvpc", 
-                                                                        vpc_name="my-vpc"), 
-                                instance_type=ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE2, 
-                                                                  ec2.InstanceSize.MICRO),
-                                machine_image=ec2.MachineImage.lookup(name="traefik image", 
-                                                                      owners=[os.environ.get("account")]),
-                                vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
-                                security_group=ec2.SecurityGroup.from_lookup_by_id(self, "seq", 
-                                                                                   security_group_id="sg-0c043b656186408a9")
-                                )
-        instance.add_user_data(f'cd /home/ec2-user \n\
-sudo sed -i "s/dashboard.voelsch.xyz/traefik.voelsch.xyz/" compose.yaml \n\
-sudo sed -i "s/api.voelsch.xyz/flask.voelsch.xyz/" compose.yaml \n\
-sudo sed -i "s/gjauaijw1d/{api.rest_api_id}/" compose.yaml \n\
-sudo sed -i "s/ro99lo/{plan.usage_plan_id}/" compose.yaml \n\
-sudo sed -i "s/https://gjauaijw1d.execute-api.eu-central-1.amazonaws.com/neuefische//{api.url}/" compose.yaml \n\
-sudo systemctl start docker \n\
-sudo docker-compose up')
-        instance.add_to_role_policy(cdk.aws_iam.PolicyStatement(actions=["apigateway:*"], 
-                                                                resources=["*"]))
-        instance.node.add_dependency(api)
-        instance.node.add_dependency(plan)
-        cfneip = ec2.CfnEIPAssociation(self, "CfnEIP", allocation_id="eipalloc-0e8628d18580b5028",
-                                       instance_id=instance.instance_id)
+        allow = ec2.SecurityGroup.from_lookup_by_id(self, "seq", security_group_id="sg-0c043b656186408a9")
+        vpc=ec2.Vpc.from_lookup(self, "myvpc", vpc_name="my-vpc")
 
+        cluster = ecs.Cluster(self, "mycluster", enable_fargate_capacity_providers=True,
+                              vpc=vpc)
+#        cluster = ecs.Cluster.from_cluster_attributes(self, "cluster", cluster_name="traefik", vpc=vpc)
 
+        exe_role = cdk.aws_iam.Role.from_role_name(self, "exe_role", role_name="ecsTaskExecutionRole")
+        task_role = cdk.aws_iam.Role.from_role_name(self, "task_role", role_name="apitaskrole")
 
+        task_definition = ecs.FargateTaskDefinition(self, "TaskDef", execution_role=exe_role,
+                                                    task_role=task_role, cpu=1024, memory_limit_mib=3072)
+        task_definition.add_container("nf-traefik", image=ecs.ContainerImage.from_registry("docker.io/avoe/django:ecs7"),
+                                      cpu=512,
+                                      port_mappings=[ecs.PortMapping(container_port=80, host_port=80)],
+                                      docker_labels={"traefik.enable":"true",
+                                    "traefik.http.routers.dashboard.rule":os.environ.get("dashhost"),
+                                    "traefik.http.routers.dashboard.service":"api@internal"})
+                
+        task_definition.add_container("nf-flask", image=ecs.ContainerImage.from_registry("docker.io/avoe/django:api.flask"),
+                                      port_mappings=[ecs.PortMapping(container_port=5000, host_port=5000)], cpu=512,
+                                      docker_labels={"traefik.enable":"true",
+                                                     "traefik.http.routers.flask.rule":os.environ.get("apphost")},
+                                      environment={"apiid": api.rest_api_id,
+                                                   "usageplanid":plan.usage_plan_id,
+                                                   "endpoint":api.url})
+
+        service = ecs.FargateService(self, "Service", cluster=cluster, task_definition=task_definition,
+                                     service_name="imagesearch", assign_public_ip=True,
+                                     security_groups=[allow])
+        
+        target = lb.ApplicationTargetGroup.from_target_group_attributes(self, "target", target_group_arn="arn:aws:elasticloadbalancing:eu-central-1:738746962693:targetgroup/traefiktg/d0b74536f7961141")
+        lbtarget = service.load_balancer_target(container_name="nf-traefik", container_port=80, protocol=ecs.Protocol.TCP)
+        target.add_target(lbtarget)

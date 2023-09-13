@@ -5,6 +5,7 @@ __pycache__
 .venv
 *.egg-info
 .env
+images
 
 # CDK asset staging directory
 .cdk.staging
@@ -13,5 +14,6 @@ cdk.out
 test.py
 test_cache
 static
-
+cdk.context.json
 .dockerignore
+s3upload.py
