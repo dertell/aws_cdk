@@ -23,8 +23,10 @@ class MycdkStack(Stack):
 
 
         bucket = s3.Bucket(self, "MyfirstBucket", removal_policy=cdk.RemovalPolicy.DESTROY,
-                           auto_delete_objects=True, block_public_access=s3.BlockPublicAccess(block_public_acls=False,block_public_policy=False,ignore_public_acls=False,restrict_public_buckets=False),
-                           bucket_name=bucketName, object_ownership= s3.ObjectOwnership.BUCKET_OWNER_PREFERRED,access_control=s3.BucketAccessControl.PUBLIC_READ)
+                           auto_delete_objects=True, block_public_access=s3.BlockPublicAccess(block_public_acls=False, block_public_policy=False, ignore_public_acls=False, restrict_public_buckets=False),
+                           bucket_name=bucketName, object_ownership= s3.ObjectOwnership.BUCKET_OWNER_PREFERRED,
+                           )
+        bucket.grant_public_access()
         
 
         table = dynamodb.Table(self, "MyfirstTable", 
@@ -73,7 +75,6 @@ class MycdkStack(Stack):
 
         cluster = ecs.Cluster(self, "mycluster", enable_fargate_capacity_providers=True,
                               vpc=vpc)
-#        cluster = ecs.Cluster.from_cluster_attributes(self, "cluster", cluster_name="traefik", vpc=vpc)
 
         exe_role = cdk.aws_iam.Role.from_role_name(self, "exe_role", role_name="ecsTaskExecutionRole")
         task_role = cdk.aws_iam.Role.from_role_name(self, "task_role", role_name="apitaskrole")
